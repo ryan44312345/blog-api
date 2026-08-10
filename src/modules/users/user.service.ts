@@ -1,7 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
+import * as bcrypt from 'bcrypt';
 
 
 
@@ -18,14 +19,24 @@ export class UsersService {
             throw new ConflictException('Este e-mail já está cadastrado.')
         }
 
-        return this.prisma.user.create({
+        const salt = await bcrypt.genSalt();
+        const passwordHash = await bcrypt.hash(dto.password, salt)
+
+        const user = this.prisma.user.create({
             data: {
                 name: dto.name,
                 email: dto.email,
-                password: dto.password,
+                password: passwordHash,
                 role: dto.role,
             },
+            select: {
+                name: true,
+                email: true,
+                role: true,
+            }
         })
+
+        return user;
     }
 
     async findAll() {
@@ -43,14 +54,25 @@ export class UsersService {
     }
 
     async update(id: string, data: UpdateUserDto) {
-        
+
         const usuarioAtualizado = await this.prisma.user.update({
             where: { id: id },
-            data:  data
+            data: data
         })
 
         return usuarioAtualizado;
     }
 
+    async delete(id: string) {
+        const usuario = await this.prisma.user.delete({
+            where: { id: id }
+        })
 
+        if (!usuario) {
+            throw new NotFoundException("Usuário não encontrado")
+        }
+
+        return usuario;
+
+    }
 }
