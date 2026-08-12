@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
@@ -19,23 +19,24 @@ export class UsersService {
             throw new ConflictException('Este e-mail já está cadastrado.')
         }
 
-        const hashedPassword = await bcrypt.hash(dto.password, 10)
+        const salt = await bcrypt.genSalt();
+        const passwordHash = await bcrypt.hash(dto.password, salt)
 
-        const user = await this.prisma.user.create({
+        const user = this.prisma.user.create({
             data: {
                 name: dto.name,
                 email: dto.email,
-                password: hashedPassword,
+                password: passwordHash,
                 role: dto.role,
             },
+            select: {
+                name: true,
+                email: true,
+                role: true,
+            }
         })
 
-        const {password, ...result} = user
-        return result;
-    }
-
-    async findByEmail(email: string) {
-        return this.prisma.user.findUnique({ where: { email } })
+        return user;
     }
 
     async findAll() {
@@ -53,27 +54,25 @@ export class UsersService {
     }
 
     async update(id: string, data: UpdateUserDto) {
-        
+
         const usuarioAtualizado = await this.prisma.user.update({
             where: { id: id },
-            data:  data
+            data: data
         })
-        if (!usuarioAtualizado) {
-            throw new NotFoundException('Usuário não encontrado')
-        }
 
         return usuarioAtualizado;
     }
 
-    async delete(id: string){
-        const usuarioRemovido = await this.prisma.user.delete({
-            where: { id }
+    async delete(id: string) {
+        const usuario = await this.prisma.user.delete({
+            where: { id: id }
         })
-        if (!usuarioRemovido) {
-            throw new NotFoundException('Usuário não encontrado')
+
+        if (!usuario) {
+            throw new NotFoundException("Usuário não encontrado")
         }
-        return usuarioRemovido;
+
+        return usuario;
+
     }
-
-
 }
