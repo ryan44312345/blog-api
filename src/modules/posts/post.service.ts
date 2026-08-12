@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { CreatePostDto } from "./dto/create-post.dto";
 
@@ -25,5 +25,20 @@ export class PostService {
         });
 
         return post;
+    }
+
+    async findAll() {
+        return this.prisma.post.findMany();
+    }
+
+    async findOne(id: string) {
+        const post = await this.prisma.post.findUnique({
+            where: { id }
+        })
+
+        if (!post) {
+            throw new NotFoundException("Post não encontrado.")
+        }
+        return post;    
     }
 }
